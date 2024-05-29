@@ -41,6 +41,7 @@ suppressPackageStartupMessages({
   library(scales)
   library(DT)
   library(gt)
+  library(lubridate)
 })
 
 # Set a theme
@@ -51,13 +52,18 @@ theme_set(theme_minimal(base_size = 24, base_family = "Atkinson Hyperlegible"))
 #| label: load-data
 #| message: false
 
-Data <- read_excel("C:/Users/WilliamBanda1/Documents/MRP/tidy_data.xlsx")
+Data <- read_excel("tidy_data.xlsx")
+Data <- Data %>%
+  filter(format(as.Date(date), "%Y") %in% 2018:2023)
+Data$year <- factor(year(Data$date))
+
+
 ```
 
 ```{r}
 #| label: set-inputs
 
-time_period <- paste(params$month, params$year)
+time_period <- "2018-2023"
 ```
 
 ```{r}
@@ -80,14 +86,15 @@ This dashboard displays statistics for:
 
 |                          |            |
 |--------------------------|------------|
-| **Years**                |  2018-2023 |
+| **Created by**                |  W. Banda |
 
 ------------------------------------------------------------------------
 
 ::: {.callout-note collapse="true"}
-## Disclaimer
+## Data source
 
-The data used in this code is a property of harper adams future farms, for any clarifications please contact Harper Adams Future Farms.
+The data used in this dashboard is from the Harper Adams Future Farm dairy.
+
 :::
 
 # All
@@ -96,24 +103,21 @@ The data used in this code is a property of harper adams future farms, for any c
 #| label: all-values
 #| results: hide
 
-# Filter data for the years 2018-2023
-Data_filtered <- Data %>%
-  filter(format(as.Date(date), "%Y") %in% 2018:2023)
-
 # Calculate average milk produced from 2018-2023
-avg_milk_produced <- Data_filtered %>%
+avg_milk_produced <- Data %>%
   summarize(avg_milk_produced = mean(milk_produced, na.rm = TRUE)) %>%
-  pull(avg_milk_produced)
+  pull(avg_milk_produced) %>% round(digits = 1)
 
 # Calculate average milk per cow from 2018-2023
-avg_milk_per_cow <- Data_filtered %>%
+avg_milk_per_cow <- Data %>%
   summarize(avg_milk_per_cow = mean(milk_per_cow, na.rm = TRUE)) %>%
-  pull(avg_milk_per_cow)
+  pull(avg_milk_per_cow) %>% round(digits = 1)
 
 # Calculate average protein % from 2018-2023
-avg_protein <- Data_filtered %>%
+avg_protein <- Data %>%
   summarize(avg_protein = mean(protein, na.rm = TRUE)) %>%
-  pull(avg_protein)
+  pull(avg_protein) %>% round(digits = 1)
+
 ```
 
 ## Row {height="20%"}
@@ -160,7 +164,6 @@ list(
 
 # Calculate yearly averages for cows_in_tank
 yearlyData <- Data %>%
-  mutate(year = format(as.Date(date), "%Y")) %>%
   group_by(year) %>%
   summarize(avg_cows_in_tank = mean(cows_in_tank, na.rm = TRUE))
 
@@ -168,7 +171,8 @@ yearlyData <- Data %>%
 p <- ggplot(yearlyData, aes(x = year, y = avg_cows_in_tank)) +
   geom_bar(stat = "identity", fill = "steelblue") +
   labs(x = "Year", y = "Average Number of Cows in Tank") +
-  theme_minimal()
+  theme_minimal()+
+  theme(legend.position = "none") 
 
 # Convert the ggplot to a plotly object
 fig <- ggplotly(p)
@@ -182,15 +186,8 @@ fig
 ```{r}
 #| title: "Sum Total of Milk Produced per Year (2018-2023)"
 
-# Ensure the 'date' column is in Date format
-Data$date <- as.Date(Data$date)
-
-# Extract year from date
-Data$year <- year(Data$date)
-
 # Aggregate data to calculate yearly total milk produced
 yearly_data <- Data %>%
-  filter(year >= 2018 & year <= 2023) %>%
   group_by(year) %>%
   summarise(total_milk_produced = sum(milk_produced, na.rm = TRUE))
 
@@ -200,7 +197,7 @@ p <- ggplot(yearly_data, aes(x = factor(year), y = total_milk_produced, fill = f
   labs(x = "Year", y = "Total Milk Produced (KGs)") +
   theme_minimal() +
   scale_y_continuous(labels = scales::comma) +
-  guides(fill = FALSE)  # Remove legend
+  theme(legend.position = "none") 
 
 # Convert the ggplot to an interactive plotly plot
 interactive_plot <- ggplotly(p)
@@ -215,9 +212,6 @@ interactive_plot
 ```{r}
 #| title: Daily Average Milk per Cow per Year
 
-# Extract year from date
-Data$year <- year(Data$date)
-
 # Aggregate data to calculate yearly total or average
 yearly_data <- Data %>%
   group_by(year) %>%
@@ -228,17 +222,18 @@ p <- ggplot(yearly_data, aes(x = factor(year), y = milk_per_cow, fill = factor(y
   geom_bar(stat = "identity") +
   labs(x = "Year", y = "Av/Milk/Cow (KGs)") +
   theme_minimal() +
-  guides(fill = FALSE)  # Remove legend
+  theme(legend.position = "none") 
 
-# Print the ggplot object to check
-print(p)
+# Convert the ggplot to an interactive plotly plot
+interactive_plot <- ggplotly(p)
+
+# Display the interactive plot
+interactive_plot
+
 ```
 
 ```{r}
 #| title: Yearly Average Comparison of Fat and Protein Percentages
-
- # Extract year from date
-Data$year <- year(Data$date)
 
 # Aggregate data to calculate yearly averages
 yearly_data <- Data %>%
@@ -256,7 +251,8 @@ p <- ggplot(tidy_yearly_data, aes(x = factor(year), y = value, color = variable,
   geom_point(size = 3) +
   labs(x = "Year", y = "Average Percentage (%)", color = "Nutrient") +
   scale_color_manual(values = c("protein" = "steelblue", "fat" = "coral")) +  # Custom colors
-  theme_minimal()
+  theme_minimal() +
+  theme(legend.position = "none") 
 
 # Convert ggplot to plotly object
 fig <- ggplotly(p)
@@ -344,8 +340,6 @@ interactive_plot
 ```{r}
 #| title: Yearly Average Comparison of Trial1 and Trial2
 
-# Extract year from date
-Data$year <- year(Data$date)
 
 # Aggregate data to calculate yearly averages
 yearly_data <- Data %>%
@@ -376,9 +370,6 @@ fig
 
 ```{r}
 #| title: Yearly Average Comparison of Highs and Low
-
-# Extract year from date
-Data$year <- year(Data$date)
 
 # Aggregate data to calculate yearly averages
 yearly_data <- Data %>%

@@ -135,7 +135,7 @@ list(
 
 ```{r}
 #| content: valuebox
-#| title: "Average Milk"
+#| title: "Daily Average Milk (KG)"
 
 list(
   icon = "clipboard2-pulse",

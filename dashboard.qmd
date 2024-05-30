@@ -221,10 +221,10 @@ yearly_data <- Data %>%
     protein_se = sd(protein, na.rm = TRUE) / sqrt(n())  # Standard error of protein percentage
   )
 
-# Check for missing values
-if (any(is.na(yearly_data$protein)) | any(is.na(yearly_data$protein_se))) {
-  warning("Missing values detected in protein or protein_se. Consider handling missing values before plotting.")
-}
+# Determine y-axis limits for a flatter appearance
+y_max <- max(yearly_data$protein) + max(yearly_data$protein_se)
+y_range <- y_max
+y_padding <- 0.1 * y_range
 
 # Plot protein percentages with horizontal error bars
 p1 <- ggplot(yearly_data, aes(x = year, y = protein)) +
@@ -233,7 +233,8 @@ p1 <- ggplot(yearly_data, aes(x = year, y = protein)) +
   geom_errorbarh(aes(xmin = year - protein_se, xmax = year + protein_se),  # Horizontal error bars
                  height = 0.1, color = "red", size = 0.8) +  # Error bar customization (adjusted)
   labs(x = "Year", y = "Protein Percentage (%)") +
-  theme_minimal()  # Plot theme
+  theme_minimal() +  # Plot theme
+  ylim(0, y_max + y_padding)  # Adjust y-axis limits to start from zero
 
 # Convert ggplot to plotly object
 fig1 <- ggplotly(p1)
@@ -271,32 +272,60 @@ interactive_plot
 ```{r}
 #| title: Yearly Average Fat Percentage
 
+# Aggregate data to calculate yearly averages and standard errors for protein
+yearly_data <- Data %>%
+  group_by(year) %>%
+  summarise(
+    protein = mean(protein, na.rm = TRUE),  # Mean protein percentage
+    protein_se = sd(protein, na.rm = TRUE) / sqrt(n())  # Standard error of protein percentage
+  )
+
 # Aggregate data to calculate yearly averages and standard errors for fat
 yearly_data_fat <- Data %>%
   group_by(year) %>%
   summarise(
-    fat = mean(fat, na.rm = TRUE),
-    fat_se = sd(fat, na.rm = TRUE) / sqrt(n())
+    fat = mean(fat, na.rm = TRUE),  # Mean fat percentage
+    fat_se = sd(fat, na.rm = TRUE) / sqrt(n())  # Standard error of fat percentage
   )
+
+# Determine y-axis limits for a flatter appearance (protein)
+y_max_protein <- max(yearly_data$protein) + max(yearly_data$protein_se)
+y_padding_protein <- 0.1 * y_max_protein
+
+# Determine y-axis limits for a flatter appearance (fat)
+y_max_fat <- max(yearly_data_fat$fat) + max(yearly_data_fat$fat_se)
+y_padding_fat <- 0.1 * y_max_fat
+
+# Plot protein percentages with horizontal error bars
+p1 <- ggplot(yearly_data, aes(x = year, y = protein)) +
+  geom_line(size = 1.2, color = "steelblue") +  # Line for average protein
+  geom_point(size = 3, color = "steelblue") +  # Points for each year
+  geom_errorbarh(aes(xmin = year - protein_se, xmax = year + protein_se),  # Horizontal error bars
+                 height = 1, color = "red", size = 0.8) +  # Error bar customization (adjusted)
+  labs(x = "Year", y = "Protein Percentage (%)") +
+  theme_minimal() +  # Plot theme
+  ylim(0, y_max_protein + y_padding_protein)  # Adjust y-axis limits to start from zero
+
+# Convert ggplot to plotly object for protein
+fig1 <- ggplotly(p1)
 
 # Plot fat percentages with horizontal error bars
 p2 <- ggplot(yearly_data_fat, aes(x = year, y = fat)) +
   geom_line(size = 1.2, color = "coral") +
   geom_point(size = 3, color = "coral") +
   geom_errorbarh(aes(xmin = year - fat_se, xmax = year + fat_se),
-                 height = 0.1, color = "darkred", size = 0.8) +  # Horizontal error bars
+                 height = 0.5, color = "darkred", size = 0.8) +  # Horizontal error bars
   labs(x = "Year", y = "Fat Percentage (%)") +
-  theme_minimal()
+  theme_minimal() +  # Plot theme
+  ylim(0, y_max_fat + y_padding_fat)  # Adjust y-axis limits to start from zero
 
-# Adjust the plot limits to ensure error bars are visible
-p2 <- p2 + xlim(min(yearly_data_fat$year - yearly_data_fat$fat_se) * 0.9,
-                max(yearly_data_fat$year + yearly_data_fat$fat_se) * 1.1)
-
-# Convert ggplot to plotly object
+# Convert ggplot to plotly object for fat
 fig2 <- ggplotly(p2)
 
-# Display the interactive plot
+# Display the interactive plots
+
 fig2
+
 
 ```
 
@@ -389,21 +418,27 @@ yearly_data <- Data %>%
 # Reshape data for visualization
 tidy_yearly_data <- yearly_data %>%
   pivot_longer(cols = c(trial1, trial2), names_to = "variable", values_to = "value") %>%
-  pivot_longer(cols = c(trial1_se, trial2_se), names_to = "se_variable", values_to = "se_value")
+  mutate(se_value = if_else(variable == "trial1", trial1_se, trial2_se))
+
+# Determine y-axis limits to start from zero
+y_max <- max(tidy_yearly_data$value) + max(tidy_yearly_data$se_value)
+y_padding <- 0.1 * y_max
 
 # Create the line plot with ggplot2
 p <- ggplot(tidy_yearly_data, aes(x = year, y = value, color = variable, group = variable)) +
-  geom_line() +
-  geom_point() +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
   geom_errorbarh(aes(xmin = year - se_value, xmax = year + se_value), height = 0.2) +
   labs(x = "Year", y = "Average Milk/Cow/Day (KGs)", color = "Class") +
-  theme_minimal()
+  theme_minimal() +
+  ylim(0, y_max + y_padding)  # Adjust y-axis limits to start from zero
 
 # Convert ggplot to plotly object
 fig <- ggplotly(p)
 
 # Display the interactive plotly line graph
 fig
+
 ```
 
 ```{r}
@@ -421,19 +456,24 @@ yearly_data <- Data %>%
 tidy_yearly_data <- yearly_data %>%
   pivot_longer(cols = c(highs, low), names_to = "variable", values_to = "value")
 
+# Determine y-axis limits to start from zero
+y_max <- max(tidy_yearly_data$value)
+y_padding <- 0.1 * y_max
+
 # Create the line plot with ggplot2
 p <- ggplot(tidy_yearly_data, aes(x = year, y = value, color = variable, group = variable)) +
-  geom_line() +
-  geom_point() +  # Add points to highlight each year
-  labs(x = "Year", y = "Average Milk/Cow/Day (KGs)				
-", color = "Class") +
-  theme_minimal()
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +  # Add points to highlight each year
+  labs(x = "Year", y = "Average Milk/Cow/Day (KGs)", color = "Class") +
+  theme_minimal() +
+  ylim(0, y_max + y_padding)  # Adjust y-axis limits to start from zero
 
 # Convert ggplot to plotly object
 fig <- ggplotly(p)
 
 # Display the interactive plotly line graph
 fig
+
 ```
 
 ## Column {width="40%"}
@@ -512,6 +552,10 @@ yearly_data_bs <- Data %>%
     bs_se = sd(bs, na.rm = TRUE) / sqrt(n())
   )
 
+# Determine y-axis limits to start from zero
+y_max_bs <- max(yearly_data_bs$bs) + max(yearly_data_bs$bs_se)
+y_padding_bs <- 0.1 * y_max_bs
+
 # Plot bs percentages with horizontal error bars
 p_bs <- ggplot(yearly_data_bs, aes(x = year, y = bs)) +
   geom_line(size = 1, color = "skyblue") +
@@ -519,14 +563,14 @@ p_bs <- ggplot(yearly_data_bs, aes(x = year, y = bs)) +
   geom_errorbarh(aes(xmin = year - bs_se, xmax = year + bs_se, y = bs),
                  color = "red", height = 1, size = 0.5) +  # Horizontal error bars
   labs(x = "Year", y = "BS ('000/ml)") +
-  theme_minimal()
+  theme_minimal() +
+  ylim(0, y_max_bs + y_padding_bs)  # Adjust y-axis limits to start from zero
 
 # Convert ggplot to plotly object
 fig_bs <- ggplotly(p_bs)
 
 # Display the interactive plot
 fig_bs
-
 
 ```
 
@@ -535,7 +579,10 @@ fig_bs
 ```{r}
 #| title: Yearly Average Somatic Cell Count
 
-# Aggregate data to calculate yearly averages and standard errors for bs
+# Convert date to year
+Data$year <- lubridate::year(Data$date)
+
+# Aggregate data to calculate yearly averages and standard errors for scc
 yearly_data_scc <- Data %>%
   group_by(year) %>%
   summarise(
@@ -543,14 +590,19 @@ yearly_data_scc <- Data %>%
     scc_se = sd(scc, na.rm = TRUE) / sqrt(n())
   )
 
-# Plot bs percentages with horizontal error bars
+# Determine y-axis limits to start from zero
+y_max_scc <- max(yearly_data_scc$scc) + max(yearly_data_scc$scc_se)
+y_padding_scc <- 0.1 * y_max_scc
+
+# Plot scc percentages with horizontal error bars
 p_scc <- ggplot(yearly_data_scc, aes(x = year, y = scc)) +
   geom_line(size = 1, color = "blue") +
   geom_point(size = 2, color = "blue") +
   geom_errorbarh(aes(xmin = year - scc_se, xmax = year + scc_se, y = scc),
                  color = "red", height = 3, size = 0.5) +  # Horizontal error bars
   labs(x = "Year", y = "SCC ('000/ml)") +
-  theme_minimal()
+  theme_minimal() +
+  ylim(0, y_max_scc + y_padding_scc)  # Adjust y-axis limits to start from zero
 
 # Convert ggplot to plotly object
 fig_scc <- ggplotly(p_scc)
